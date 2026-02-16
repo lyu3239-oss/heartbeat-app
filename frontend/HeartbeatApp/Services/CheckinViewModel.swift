@@ -53,7 +53,7 @@ final class CheckinViewModel: ObservableObject {
     @Published var contactPhone: String = ""
     @Published var contactName2: String = ""
     @Published var contactPhone2: String = ""
-    @Published var baseURL: String = "http://127.0.0.1:4000"
+    @Published var baseURL: String = CheckinViewModel.resolveBaseURL()
 
     private let api = APIClient()
     private var userId = "ios-local-user"
@@ -65,6 +65,25 @@ final class CheckinViewModel: ObservableObject {
         components.hour = 9
         components.minute = 0
         return Calendar.current.date(from: components) ?? Date()
+    }
+
+    /// Resolve API base URL with a clear dev/prod fallback order:
+    /// 1) Info.plist `API_BASE_URL` (preferred for release builds)
+    /// 2) Debug fallback localhost
+    /// 3) Production placeholder (must be replaced before release)
+    private static func resolveBaseURL() -> String {
+        if let configured = Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String {
+            let trimmed = configured.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                return trimmed
+            }
+        }
+
+        #if DEBUG
+        return "http://127.0.0.1:4000"
+        #else
+        return "https://your-railway-domain.up.railway.app"
+        #endif
     }
     
     init() {

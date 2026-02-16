@@ -34,5 +34,7 @@
 	</dict>
 	<key>NSMotionUsageDescription</key>
 	<string>We need access to your step count to automatically check in when you walk.</string>
+	<key>API_BASE_URL</key>
+	<string>https://heartbeat-app-production.up.railway.app</string>
 </dict>
 </plist>
