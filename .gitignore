@@ -1,0 +1,32 @@
+# Environment variables
+.env
+backend/.env
+
+# Databases
+*.db
+*.sqlite
+backend/data/*.db
+backend/data/*.sqlite
+
+# Node modules
+node_modules
+*/node_modules
+
+# Logs
+*.log
+npm-debug.log*
+*.pid
+
+# Local runtime / database files
+backend/data/*
+backend/backend/data/*
+*.db-shm
+*.db-wal
+
+# OS Files
+.DS_Store
+
+# Xcode user-specific files
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/

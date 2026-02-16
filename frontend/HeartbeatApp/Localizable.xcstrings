@@ -1,0 +1,466 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Back" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "返回" } }
+      }
+    },
+    "User avatar" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "用户头像" } }
+      }
+    },
+    "Welcome Back" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "欢迎回来" } }
+      }
+    },
+    "Sign in to continue" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "登录继续使用" } }
+      }
+    },
+    "Email" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "邮箱" } }
+      }
+    },
+    "Enter your email" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请输入邮箱" } }
+      }
+    },
+    "Password" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "密码" } }
+      }
+    },
+    "Enter your password" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请输入密码" } }
+      }
+    },
+    "Forgot password?" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "忘记密码？" } }
+      }
+    },
+    "Sign In" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "登录" } }
+      }
+    },
+    "Don't have an account?" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "还没有账号？" } }
+      }
+    },
+    "Sign Up" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "立即注册" } }
+      }
+    },
+    "Forgot Password" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "忘记密码" } }
+      }
+    },
+    "Verify your email to reset your password" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请验证你的邮箱后重置密码" } }
+      }
+    },
+    "Enter your email address" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请输入邮箱地址" } }
+      }
+    },
+    "Verification Code" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "验证码" } }
+      }
+    },
+    "Enter verification code" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请输入邮箱验证码" } }
+      }
+    },
+    "Send Code" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "发送验证码" } }
+      }
+    },
+    "New Password" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "新密码" } }
+      }
+    },
+    "Set new password (6+ chars)" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请设置新密码（至少6位）" } }
+      }
+    },
+    "Confirm Password" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "确认密码" } }
+      }
+    },
+    "Re-enter your password" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请再次输入密码" } }
+      }
+    },
+    "Re-enter new password" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请再次输入新密码" } }
+      }
+    },
+    "Reset Password" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "重置密码" } }
+      }
+    },
+    "A verification code will be sent to your email" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "验证码将发送到你的邮箱，请注意查收" } }
+      }
+    },
+    "Create Account" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "创建账号" } }
+      }
+    },
+    "Fill in the info to sign up" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请填写以下信息完成注册" } }
+      }
+    },
+    "Username" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "用户名" } }
+      }
+    },
+    "Enter your username" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请输入用户名" } }
+      }
+    },
+    "Set password (6+ chars)" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请设置密码（至少6位）" } }
+      }
+    },
+    "By signing up, you agree to the" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "注册即表示同意" } }
+      }
+    },
+    "Terms of Service" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "用户协议" } }
+      }
+    },
+    "and" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "和" } }
+      }
+    },
+    "Privacy Policy" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "隐私政策" } }
+      }
+    },
+    "Set Emergency Contacts" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设置紧急联系人" } }
+      }
+    },
+    "Add emergency contacts for when they're needed" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "添加紧急联系人，以便在需要时联系" } }
+      }
+    },
+    "Emergency Contact 1" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "紧急联系人1" } }
+      }
+    },
+    "Emergency Contact 2" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "紧急联系人2" } }
+      }
+    },
+    "Add Emergency Contact" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "添加紧急联系人" } }
+      }
+    },
+    "We recommend adding at least one emergency contact so your loved ones can be reached in an emergency." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "建议添加至少一位紧急联系人，以便在紧急情况下及时联系到您的亲友。" } }
+      }
+    },
+    "Complete" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "完成" } }
+      }
+    },
+    "Skip" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "跳过" } }
+      }
+    },
+    "Name not set" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未填写姓名" } }
+      }
+    },
+    "Phone not set" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未填写电话" } }
+      }
+    },
+    "Name" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "姓名" } }
+      }
+    },
+    "Enter contact name" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请输入联系人姓名" } }
+      }
+    },
+    "Phone" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "电话" } }
+      }
+    },
+    "Enter contact phone" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请输入联系人电话" } }
+      }
+    },
+    "Cancel" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "取消" } }
+      }
+    },
+    "Save" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "保存" } }
+      }
+    },
+    "Registration Successful!" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "注册成功！" } }
+      }
+    },
+    "Welcome! Let's set up your emergency contacts" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "欢迎加入，接下来请设置紧急联系人" } }
+      }
+    },
+    "Next" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "下一步" } }
+      }
+    },
+    "Change Password" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "更改密码" } }
+      }
+    },
+    "Change your password regularly for security" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "为了你的账户安全，请定期更换密码" } }
+      }
+    },
+    "Current Password" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "当前密码" } }
+      }
+    },
+    "Enter current password" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请输入当前密码" } }
+      }
+    },
+    "Confirm New Password" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "确认新密码" } }
+      }
+    },
+    "Confirm Change" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "确认修改" } }
+      }
+    },
+    "Passwords do not match" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "两次输入的新密码不一致" } }
+      }
+    },
+    "Password Security Tips:" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "密码安全提示：" } }
+      }
+    },
+    "• At least 6 characters" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "• 密码长度至少6位" } }
+      }
+    },
+    "• Mix letters, numbers, and symbols" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "• 建议包含字母、数字和符号" } }
+      }
+    },
+    "• Avoid overly simple passwords" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "• 不要使用过于简单的密码" } }
+      }
+    },
+    "• Change passwords regularly" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "• 定期更换密码以保护账户安全" } }
+      }
+    },
+    "Forgot current password?" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "忘记当前密码？" } }
+      }
+    },
+    "Settings" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设置" } }
+      }
+    },
+    "Account Settings" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "账户设置" } }
+      }
+    },
+    "Emergency Contacts" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "紧急联系人" } }
+      }
+    },
+    "Auto Check-in" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "自动打卡" } }
+      }
+    },
+    "General" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "通用" } }
+      }
+    },
+    "Language" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "语言设置" } }
+      }
+    },
+    "Version 1.0.0" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "版本 1.0.0" } }
+      }
+    },
+    "Sign Out" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "退出登录" } }
+      }
+    },
+    "Auto check-in when daily steps exceed 100" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "每天步数超过100步自动打卡" } }
+      }
+    },
+    "When enabled, walking 100+ steps daily will auto check-in" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "开启后，每天行走超过100步将自动完成打卡" } }
+      }
+    },
+    "Auto Check-in Settings" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "自动打卡设置" } }
+      }
+    },
+    "Done" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "完成" } }
+      }
+    },
+    "Hello, %@" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "你好，%@" } }
+      }
+    },
+    "User" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "用户" } }
+      }
+    },
+    "Checked in today ✓" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "今日已打卡 ✓" } }
+      }
+    },
+    "Not checked in today" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "今日未打卡" } }
+      }
+    },
+    "Auto check-in daily" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "每天自动为你完成打卡" } }
+      }
+    },
+    "%lld day streak" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "连续打卡 %lld 天" } }
+      }
+    },
+    "Keep checking in for a healthy habit" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "坚持打卡，养成良好习惯" } }
+      }
+    },
+    "Please enable auto check-in in settings" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请先在设置中开启自动打卡选项" } }
+      }
+    },
+    "Daily steps reached %lld, auto checking in" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "今日步数达到%lld，正在自动打卡" } }
+      }
+    },
+    "Device unlock detected, auto checking in" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "检测到设备解锁，正在自动打卡" } }
+      }
+    },
+    "Emergency contact triggered (Backend simulation)" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已触发紧急联系（当前为后端模拟）" } }
+      }
+    },
+    "Emergency contact not needed at this time" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "暂不需要紧急联系" } }
+      }
+    },
+    "Warning: Not checked in for over 2 days" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "注意：已超过2天未打卡" } }
+      }
+    },
+    "Password must be at least 6 characters" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "密码长度至少6位" } }
+      }
+    }
+  },
+  "version" : "1.0"
+}

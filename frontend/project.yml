@@ -1,0 +1,35 @@
+name: HeartbeatApp
+options:
+  minimumXcodeGenVersion: 2.40.0
+  deploymentTarget:
+    iOS: "16.0"
+settings:
+  base:
+    PRODUCT_BUNDLE_IDENTIFIER: com.example.HeartbeatApp
+    SWIFT_VERSION: 5.0
+targets:
+  HeartbeatApp:
+    type: application
+    platform: iOS
+    sources:
+      - HeartbeatApp
+    resources:
+      - HeartbeatApp/Assets.xcassets
+    info:
+      path: HeartbeatApp/Info.plist
+      properties:
+        CFBundleDisplayName: HeartbeatApp
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+    settings:
+      base:
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: true
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+schemes:
+  HeartbeatApp:
+    build:
+      targets:
+        HeartbeatApp: all
+    run:
+      config: Debug

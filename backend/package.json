@@ -1,0 +1,21 @@
+{
+  "name": "heartbeat-backend",
+  "version": "1.0.0",
+  "description": "Local backend for Heartbeat emergency check-in app",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "better-sqlite3": "^12.6.2",
+    "cors": "^2.8.5",
+    "dayjs": "^1.11.13",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "node-cron": "^4.2.1",
+    "twilio": "^5.12.1"
+  }
+}

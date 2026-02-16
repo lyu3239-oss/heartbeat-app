@@ -1,0 +1,2 @@
+Use SF Symbol in code: heart.fill (red)
+For release, replace this with a proper red-heart PNG/PDF asset.
