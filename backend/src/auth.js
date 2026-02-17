@@ -1,6 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcrypt";
 import { getUserByEmail, upsertUser, updatePassword } from "./store.js";
+import { sendEmail } from "./emailService.js";
 
 const router = Router();
 const SALT_ROUNDS = 10;
@@ -84,7 +85,7 @@ router.post("/login", async (req, res) => {
 });
 
 // ── Send Verification Code ─────────────────────────────────
-router.post("/send-code", (req, res) => {
+router.post("/send-code", async (req, res) => {
     const { email, language } = req.body || {};
     const lang = language || "en";
 
@@ -103,7 +104,49 @@ router.post("/send-code", (req, res) => {
         expiresAt: Date.now() + 10 * 60 * 1000,
     });
 
-    console.log(`\n📧 Verification code sent to ${email}: ${code} (valid for 10 minutes)\n`);
+    const subject = msg(lang, "Your Heartbeat verification code", "您的 Heartbeat 验证码");
+    const html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.5;">
+        <h2>${msg(lang, "Heartbeat verification code", "Heartbeat 验证码")}</h2>
+        <p>${msg(lang, "Your verification code is:", "您的验证码是：")}</p>
+        <p style="font-size: 24px; font-weight: bold; letter-spacing: 3px;">${code}</p>
+        <p>${msg(lang, "This code expires in 10 minutes.", "验证码 10 分钟后过期。")}</p>
+      </div>
+    `;
+    const text = `${msg(lang, "Your verification code is", "您的验证码是")}: ${code}. ${msg(lang, "It expires in 10 minutes.", "10 分钟后过期。")}`;
+
+    const result = await sendEmail({
+        to: email,
+        subject,
+        html,
+        text,
+    });
+
+    if (!result.ok) {
+        verificationCodes.delete(email);
+
+        if (result.reason === "not_configured") {
+            return res.status(503).json({
+                ok: false,
+                message: msg(
+                    lang,
+                    "Email service is not configured yet. Please contact support.",
+                    "邮件服务尚未配置，请联系管理员。"
+                ),
+            });
+        }
+
+        return res.status(502).json({
+            ok: false,
+            message: msg(
+                lang,
+                "Failed to send verification email. Please try again later.",
+                "验证码发送失败，请稍后重试。"
+            ),
+        });
+    }
+
+    console.log(`\n📧 Verification code sent to ${email} (valid for 10 minutes)\n`);
 
     return res.json({ ok: true, message: msg(lang, "Verification code sent to your email", "验证码已发送到邮箱") });
 });
