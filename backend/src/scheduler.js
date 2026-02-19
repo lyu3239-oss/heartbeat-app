@@ -1,5 +1,5 @@
 import cron from "node-cron";
-import { getAllUsers } from "./store.js";
+import { getAllUsers, upsertUser } from "./store.js";
 import { shouldTriggerEmergency, placeAllEmergencyCalls } from "./alertService.js";
 
 /**
@@ -12,7 +12,7 @@ export function startScheduler() {
     cron.schedule("0 10 * * *", async () => {
         console.log(`\n⏰ [CRON] Running daily emergency check at ${new Date().toISOString()}`);
 
-        const users = getAllUsers();
+        const users = await getAllUsers();
         let alertCount = 0;
 
         for (const user of users) {
@@ -37,10 +37,9 @@ export function startScheduler() {
                 alertCount++;
 
                 // Update lastAlertAt to prevent repeated calls within 24h
-                const { upsertUser } = await import("./store.js");
                 user.lastAlertAt = new Date().toISOString();
                 user.updatedAt = new Date().toISOString();
-                upsertUser(user);
+                await upsertUser(user);
             } catch (err) {
                 console.error(`[CRON] Error calling contacts for ${user.userId}:`, err.message);
             }

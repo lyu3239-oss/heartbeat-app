@@ -26,7 +26,7 @@ router.post("/register", async (req, res) => {
         return res.status(400).json({ ok: false, message: msg(lang, "Password must be at least 6 characters", "密码长度至少为6位") });
     }
 
-    const existing = getUserByEmail(email);
+    const existing = await getUserByEmail(email);
     if (existing) {
         return res.status(409).json({ ok: false, message: msg(lang, "This email is already registered", "该邮箱已被注册") });
     }
@@ -48,7 +48,7 @@ router.post("/register", async (req, res) => {
         updatedAt: new Date().toISOString(),
     };
 
-    upsertUser(user);
+    await upsertUser(user);
 
     const { password: _, ...safeUser } = user;
     return res.json({ ok: true, message: msg(lang, "Registration successful", "注册成功"), user: safeUser });
@@ -63,7 +63,7 @@ router.post("/login", async (req, res) => {
         return res.status(400).json({ ok: false, message: msg(lang, "Please enter email and password", "请填写邮箱和密码") });
     }
 
-    const user = getUserByEmail(email);
+    const user = await getUserByEmail(email);
     if (!user) {
         return res.status(401).json({ ok: false, message: msg(lang, "Invalid email or password", "邮箱或密码错误") });
     }
@@ -77,7 +77,7 @@ router.post("/login", async (req, res) => {
     if (user.language !== lang) {
         user.language = lang;
         user.updatedAt = new Date().toISOString();
-        upsertUser(user);
+        await upsertUser(user);
     }
 
     const { password: _, ...safeUser } = user;
@@ -93,7 +93,7 @@ router.post("/send-code", async (req, res) => {
         return res.status(400).json({ ok: false, message: msg(lang, "Please provide an email address", "请提供邮箱地址") });
     }
 
-    const user = getUserByEmail(email);
+    const user = await getUserByEmail(email);
     if (!user) {
         return res.status(404).json({ ok: false, message: msg(lang, "This email is not registered", "该邮箱未注册") });
     }
@@ -175,13 +175,13 @@ router.post("/reset-password", async (req, res) => {
         return res.status(400).json({ ok: false, message: msg(lang, "Invalid verification code", "验证码错误") });
     }
 
-    const user = getUserByEmail(email);
+    const user = await getUserByEmail(email);
     if (!user) {
         return res.status(404).json({ ok: false, message: msg(lang, "User not found", "用户不存在") });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
-    updatePassword(user.userId, hashedPassword);
+    await updatePassword(user.userId, hashedPassword);
     verificationCodes.delete(email);
 
     return res.json({ ok: true, message: msg(lang, "Password reset successful", "密码重置成功") });
@@ -199,7 +199,7 @@ router.post("/change-password", async (req, res) => {
         return res.status(400).json({ ok: false, message: msg(lang, "New password must be at least 6 characters", "新密码长度至少为6位") });
     }
 
-    const user = getUserByEmail(email);
+    const user = await getUserByEmail(email);
     if (!user) {
         return res.status(404).json({ ok: false, message: msg(lang, "User not found", "用户不存在") });
     }
@@ -210,7 +210,7 @@ router.post("/change-password", async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
-    updatePassword(user.userId, hashedPassword);
+    await updatePassword(user.userId, hashedPassword);
 
     return res.json({ ok: true, message: msg(lang, "Password changed successfully", "密码修改成功") });
 });

@@ -1,45 +1,49 @@
-import Database from "better-sqlite3";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import dotenv from "dotenv";
+import { Pool } from "pg";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
-// Data directory is one level up from src, in 'data' folder
-const dataDir = path.resolve(__dirname, "..", "data");
+const connectionString = process.env.DATABASE_URL;
 
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+if (!connectionString) {
+  throw new Error("DATABASE_URL is required for PostgreSQL connection");
 }
 
-const dbPath = path.join(dataDir, "heartbeat.db");
-const db = new Database(dbPath);
+const sslEnabled = String(process.env.PGSSL || "false").toLowerCase() === "true";
 
-// Enable WAL mode for better concurrent read performance.
-db.pragma("journal_mode = WAL");
+const pool = new Pool({
+  connectionString,
+  ssl: sslEnabled ? { rejectUnauthorized: false } : false,
+});
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    user_id           TEXT PRIMARY KEY,
-    username          TEXT,
-    call_name         TEXT,
-    email             TEXT,
-    password          TEXT,
-    contact_name      TEXT,
-    contact_phone     TEXT,
-    contact_name2     TEXT,
-    contact_phone2    TEXT,
-    last_checkin_date TEXT,
-    last_alert_at     TEXT,
-    language          TEXT DEFAULT 'en',
-    updated_at        TEXT
-  )
-`);
+let initialized = false;
 
-// Migration: add language column if missing (existing DBs)
-try { db.exec("ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'en'"); } catch (_) { }
-// Migration: add call_name column if missing (existing DBs)
-try { db.exec("ALTER TABLE users ADD COLUMN call_name TEXT"); } catch (_) { }
+export async function initDb() {
+  if (initialized) return;
 
-export default db;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      user_id           TEXT PRIMARY KEY,
+      username          TEXT,
+      call_name         TEXT,
+      email             TEXT UNIQUE,
+      password          TEXT,
+      contact_name      TEXT,
+      contact_phone     TEXT,
+      contact_name2     TEXT,
+      contact_phone2    TEXT,
+      last_checkin_date TEXT,
+      last_alert_at     TEXT,
+      language          TEXT DEFAULT 'en',
+      updated_at        TEXT
+    )
+  `);
+
+  initialized = true;
+}
+
+export default pool;
