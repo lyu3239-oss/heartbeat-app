@@ -17,7 +17,7 @@ const sslEnabled = String(process.env.PGSSL || "false").toLowerCase() === "true"
 
 const pool = new Pool({
   connectionString,
-  ssl: sslEnabled ? { rejectUnauthorized: true } : false,
+  ssl: sslEnabled ? { rejectUnauthorized: false } : false,
 });
 
 let initialized = false;
