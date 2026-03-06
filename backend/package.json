@@ -14,9 +14,10 @@
     "dayjs": "^1.11.13",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
     "nodemailer": "^6.10.0",
-    "node-cron": "^4.2.1",
-    "pg": "^8.13.1",
-    "twilio": "^5.12.1"
+    "pg": "^8.13.1"
   }
 }

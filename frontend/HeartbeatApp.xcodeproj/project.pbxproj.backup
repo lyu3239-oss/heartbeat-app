@@ -13,7 +13,6 @@
 		5A258AAB9745C4BB774D8176 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE8BC0D852404221338F5BBF /* APIClient.swift */; };
 		5E18722DD781015AD36A7E29 /* AppModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2F8E3AC1CDF8393BFF1CBE4 /* AppModels.swift */; };
 		BDBA528BFFC272D359042C64 /* CheckinViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D07134DFB0CC4DCA21D959D /* CheckinViewModel.swift */; };
-		926FD936 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D22EE0FE /* KeychainService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -25,7 +24,6 @@
 		CB8E6A059B44AF288CC45B4C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		CE8BC0D852404221338F5BBF /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		E2F8E3AC1CDF8393BFF1CBE4 /* AppModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModels.swift; sourceTree = "<group>"; };
-		D22EE0FE /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */

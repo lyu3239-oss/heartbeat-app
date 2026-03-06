@@ -1,17 +1,40 @@
 import { Router } from "express";
 import bcrypt from "bcrypt";
-import { getUserByEmail, upsertUser, updatePassword } from "./store.js";
+import dayjs from "dayjs";
+import {
+  deleteUserById,
+  getUserByEmail,
+  getUser,
+  upsertUser,
+  updatePassword,
+  saveRefreshToken,
+  getRefreshToken,
+  deleteRefreshToken,
+  deleteAllUserRefreshTokens,
+  saveVerificationCode,
+  getVerificationCode,
+  deleteVerificationCode,
+} from "./store.js";
 import { sendEmail } from "./emailService.js";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+} from "./jwtUtils.js";
 
 const router = Router();
 const SALT_ROUNDS = 10;
 
-// In-memory verification code store: email -> { code, expiresAt }
-const verificationCodes = new Map();
-
 // Helper: return message in user's language
 function msg(lang, en, zh) {
     return lang === "zh" ? zh : en;
+}
+
+// Helper: sanitize email for logging
+function sanitizeEmail(email) {
+    if (!email || !email.includes("@")) return "***";
+    const [local, domain] = email.split("@");
+    return `${local[0]}***@${domain}`;
 }
 
 // ── Register ────────────────────────────────────────────────
@@ -43,15 +66,25 @@ router.post("/register", async (req, res) => {
         emergencyContact: { name: null, phone: null },
         emergencyContact2: { name: null, phone: null },
         lastCheckinDate: null,
-        lastAlertAt: null,
         language: lang,
         updatedAt: new Date().toISOString(),
     };
 
     await upsertUser(user);
 
+    const accessToken = generateAccessToken(userId, email);
+    const refreshToken = generateRefreshToken(userId);
+    const refreshExpiresAt = dayjs().add(7, "day").toDate();
+    await saveRefreshToken(userId, refreshToken, refreshExpiresAt);
+
     const { password: _, ...safeUser } = user;
-    return res.json({ ok: true, message: msg(lang, "Registration successful", "注册成功"), user: safeUser });
+    return res.json({
+      ok: true,
+      message: msg(lang, "Registration successful", "注册成功"),
+      user: safeUser,
+      accessToken,
+      refreshToken,
+    });
 });
 
 // ── Login ───────────────────────────────────────────────────
@@ -80,8 +113,19 @@ router.post("/login", async (req, res) => {
         await upsertUser(user);
     }
 
+    const accessToken = generateAccessToken(user.userId, user.email);
+    const refreshToken = generateRefreshToken(user.userId);
+    const refreshExpiresAt = dayjs().add(7, "day").toDate();
+    await saveRefreshToken(user.userId, refreshToken, refreshExpiresAt);
+
     const { password: _, ...safeUser } = user;
-    return res.json({ ok: true, message: msg(lang, "Login successful", "登录成功"), user: safeUser });
+    return res.json({
+      ok: true,
+      message: msg(lang, "Login successful", "登录成功"),
+      user: safeUser,
+      accessToken,
+      refreshToken,
+    });
 });
 
 // ── Send Verification Code ─────────────────────────────────
@@ -99,10 +143,8 @@ router.post("/send-code", async (req, res) => {
     }
 
     const code = String(Math.floor(100000 + Math.random() * 900000));
-    verificationCodes.set(email, {
-        code,
-        expiresAt: Date.now() + 10 * 60 * 1000,
-    });
+    const expiresAt = dayjs().add(10, "minute").toDate();
+    await saveVerificationCode(email, code, expiresAt);
 
     const subject = msg(lang, "Your Heartbeat verification code", "您的 Heartbeat 验证码");
     const html = `
@@ -123,7 +165,7 @@ router.post("/send-code", async (req, res) => {
     });
 
     if (!result.ok) {
-        verificationCodes.delete(email);
+        await deleteVerificationCode(email);
 
         if (result.reason === "not_configured") {
             return res.status(503).json({
@@ -146,7 +188,7 @@ router.post("/send-code", async (req, res) => {
         });
     }
 
-    console.log(`\n📧 Verification code sent to ${email} (valid for 10 minutes)\n`);
+    console.log(`\n📧 Verification code sent to ${sanitizeEmail(email)} (valid for 10 minutes)\n`);
 
     return res.json({ ok: true, message: msg(lang, "Verification code sent to your email", "验证码已发送到邮箱") });
 });
@@ -163,13 +205,9 @@ router.post("/reset-password", async (req, res) => {
         return res.status(400).json({ ok: false, message: msg(lang, "New password must be at least 6 characters", "新密码长度至少为6位") });
     }
 
-    const stored = verificationCodes.get(email);
+    const stored = await getVerificationCode(email);
     if (!stored) {
         return res.status(400).json({ ok: false, message: msg(lang, "Please get a verification code first", "请先获取验证码") });
-    }
-    if (Date.now() > stored.expiresAt) {
-        verificationCodes.delete(email);
-        return res.status(400).json({ ok: false, message: msg(lang, "Code expired, please request a new one", "验证码已过期，请重新获取") });
     }
     if (stored.code !== code) {
         return res.status(400).json({ ok: false, message: msg(lang, "Invalid verification code", "验证码错误") });
@@ -182,7 +220,7 @@ router.post("/reset-password", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await updatePassword(user.userId, hashedPassword);
-    verificationCodes.delete(email);
+    await deleteVerificationCode(email);
 
     return res.json({ ok: true, message: msg(lang, "Password reset successful", "密码重置成功") });
 });
@@ -213,6 +251,90 @@ router.post("/change-password", async (req, res) => {
     await updatePassword(user.userId, hashedPassword);
 
     return res.json({ ok: true, message: msg(lang, "Password changed successfully", "密码修改成功") });
+});
+
+// ── Delete Account ─────────────────────────────────────────
+router.post("/delete-account", async (req, res) => {
+    const { email, password, language } = req.body || {};
+    const lang = language || "en";
+
+    if (!email || !password) {
+        return res.status(400).json({
+            ok: false,
+            message: msg(lang, "Email and password are required", "邮箱和密码为必填项")
+        });
+    }
+
+    const user = await getUserByEmail(email);
+    if (!user) {
+        return res.status(404).json({ ok: false, message: msg(lang, "User not found", "用户不存在") });
+    }
+
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+        return res.status(401).json({ ok: false, message: msg(lang, "Password is incorrect", "密码错误") });
+    }
+
+    await deleteUserById(user.userId);
+    await deleteAllUserRefreshTokens(user.userId);
+    await deleteVerificationCode(email);
+
+    return res.json({ ok: true, message: msg(lang, "Account deleted", "账号已删除") });
+});
+
+// ── Refresh Token ──────────────────────────────────────────
+router.post("/refresh-token", async (req, res) => {
+    const { refreshToken, language } = req.body || {};
+    const lang = language || "en";
+
+    if (!refreshToken) {
+        return res.status(400).json({
+            ok: false,
+            message: msg(lang, "Refresh token is required", "刷新令牌为必填项")
+        });
+    }
+
+    // Verify the refresh token
+    const verification = verifyRefreshToken(refreshToken);
+    if (!verification.valid) {
+        return res.status(401).json({
+            ok: false,
+            message: msg(lang, "Invalid or expired refresh token", "刷新令牌无效或已过期")
+        });
+    }
+
+    // Check if token exists in database
+    const storedToken = await getRefreshToken(refreshToken);
+    if (!storedToken) {
+        return res.status(401).json({
+            ok: false,
+            message: msg(lang, "Refresh token not found or expired", "刷新令牌未找到或已过期")
+        });
+    }
+
+    const userId = verification.payload.userId;
+    const user = await getUser(userId);
+    if (!user) {
+        return res.status(404).json({
+            ok: false,
+            message: msg(lang, "User not found", "用户不存在")
+        });
+    }
+
+    // Generate new tokens
+    const newAccessToken = generateAccessToken(user.userId, user.email);
+    const newRefreshToken = generateRefreshToken(user.userId);
+    const refreshExpiresAt = dayjs().add(7, "day").toDate();
+
+    // Delete old refresh token and save new one
+    await deleteRefreshToken(refreshToken);
+    await saveRefreshToken(user.userId, newRefreshToken, refreshExpiresAt);
+
+    return res.json({
+        ok: true,
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+    });
 });
 
 export default router;

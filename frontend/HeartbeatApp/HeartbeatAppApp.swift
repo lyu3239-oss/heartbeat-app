@@ -8,6 +8,9 @@ struct HeartbeatAppApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(viewModel)
+                .task {
+                    await viewModel.restoreSession()
+                }
         }
     }
 }

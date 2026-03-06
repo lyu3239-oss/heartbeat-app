@@ -13,7 +13,6 @@ struct UserProfile: Codable {
     var emergencyContact: EmergencyContact?
     var emergencyContact2: EmergencyContact?
     var lastCheckinDate: String?
-    var lastAlertAt: String?
     var language: String?
 }
 
@@ -31,6 +30,6 @@ struct APIResponse<T: Codable>: Codable {
     var ok: Bool
     var message: String?
     var user: T?
-    var triggered: Bool?
-    var emergencyShouldTrigger: Bool?
+    var accessToken: String?
+    var refreshToken: String?
 }

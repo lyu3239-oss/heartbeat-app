@@ -1,5 +1,6 @@
 import Foundation
 import CoreMotion
+import UserNotifications
 
 @MainActor
 final class CheckinViewModel: ObservableObject {
@@ -26,7 +27,7 @@ final class CheckinViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var autoCheckinBySteps: Bool = false {
         didSet {
-            UserDefaults.standard.set(autoCheckinBySteps, forKey: "autoCheckinBySteps")
+            UserDefaults.standard.set(autoCheckinBySteps, forKey: autoCheckinByStepsKey)
             if autoCheckinBySteps && isAuthenticated {
                 startPedometerUpdates()
             } else {
@@ -42,11 +43,14 @@ final class CheckinViewModel: ObservableObject {
     @Published var dailyReminderEnabled: Bool = false {
         didSet {
             UserDefaults.standard.set(dailyReminderEnabled, forKey: "dailyReminderEnabled")
+            Task { await refreshDailyReminderScheduleIfNeeded() }
         }
     }
     @Published var dailyReminderTime: Date = CheckinViewModel.defaultReminderTime {
         didSet {
             UserDefaults.standard.set(dailyReminderTime.timeIntervalSince1970, forKey: "dailyReminderTime")
+            guard dailyReminderEnabled else { return }
+            Task { await scheduleDailyReminder() }
         }
     }
     @Published var contactName: String = ""
@@ -59,6 +63,10 @@ final class CheckinViewModel: ObservableObject {
     private var userId = "ios-local-user"
     private var lastCheckinDate: Date?
     private let pedometer = CMPedometer()
+    private let dailyReminderRequestId = "heartbeat.daily-reminder"
+
+    /// Number of days since last check-in (nil if never checked in)
+    @Published var daysSinceLastCheckin: Int?
 
     private static var defaultReminderTime: Date {
         var components = Calendar.current.dateComponents([.year, .month, .day], from: Date())
@@ -67,14 +75,17 @@ final class CheckinViewModel: ObservableObject {
         return Calendar.current.date(from: components) ?? Date()
     }
 
+    private var autoCheckinByStepsKey: String {
+        "autoCheckinBySteps_\(userId)"
+    }
+
     /// Resolve API base URL with a clear dev/prod fallback order:
-    /// 1) Info.plist `API_BASE_URL` (preferred for release builds)
+    /// 1) Info.plist `API_BASE_URL` (required for release builds)
     /// 2) Debug fallback localhost
-    /// 3) Production placeholder (must be replaced before release)
     private static func resolveBaseURL() -> String {
         if let configured = Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String {
             let trimmed = configured.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty {
+            if !trimmed.isEmpty && !trimmed.contains("your-railway-domain") {
                 return trimmed
             }
         }
@@ -82,12 +93,13 @@ final class CheckinViewModel: ObservableObject {
         #if DEBUG
         return "http://127.0.0.1:4000"
         #else
-        return "https://your-railway-domain.up.railway.app"
+        fatalError("API_BASE_URL must be configured in Info.plist for release builds")
         #endif
     }
     
     init() {
-        self.autoCheckinBySteps = UserDefaults.standard.bool(forKey: "autoCheckinBySteps")
+        // Keep default OFF until a specific user signs in and preferences are loaded.
+        self.autoCheckinBySteps = false
         self.autoCheckinByUnlock = UserDefaults.standard.bool(forKey: "autoCheckinByUnlock")
         self.dailyReminderEnabled = UserDefaults.standard.bool(forKey: "dailyReminderEnabled")
 
@@ -97,11 +109,94 @@ final class CheckinViewModel: ObservableObject {
         } else {
             self.dailyReminderTime = Self.defaultReminderTime
         }
-        
+
         // Only start if authenticated (initially false, but just in case logic changes)
         if autoCheckinBySteps && isAuthenticated {
             startPedometerUpdates()
         }
+
+        // Set up session expiration callback
+        api.onSessionExpired = { [weak self] in
+            Task { @MainActor in
+                self?.logout()
+            }
+        }
+
+        Task { await refreshDailyReminderScheduleIfNeeded() }
+    }
+
+    private func refreshDailyReminderScheduleIfNeeded() async {
+        if dailyReminderEnabled {
+            await scheduleDailyReminder()
+        } else {
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [dailyReminderRequestId])
+        }
+    }
+
+    private func scheduleDailyReminder() async {
+        let center = UNUserNotificationCenter.current()
+        let hasPermission = await ensureNotificationAuthorization(center: center)
+
+        guard hasPermission else {
+            dailyReminderEnabled = false
+            return
+        }
+
+        center.removePendingNotificationRequests(withIdentifiers: [dailyReminderRequestId])
+
+        var dateComponents = Calendar.current.dateComponents([.hour, .minute], from: dailyReminderTime)
+        dateComponents.second = 0
+
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "Daily Check-in Reminder")
+        content.body = String(localized: "It's time to check in today")
+        content.sound = .default
+
+        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+        let request = UNNotificationRequest(identifier: dailyReminderRequestId, content: content, trigger: trigger)
+
+        do {
+            try await addNotificationRequest(request, center: center)
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    private func ensureNotificationAuthorization(center: UNUserNotificationCenter) async -> Bool {
+        let settings = await center.notificationSettings()
+        switch settings.authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            return true
+        case .notDetermined:
+            do {
+                return try await center.requestAuthorization(options: [.alert, .sound, .badge])
+            } catch {
+                statusText = error.localizedDescription
+                return false
+            }
+        case .denied:
+            statusText = String(localized: "Notifications are disabled. Please enable notifications in Settings.")
+            return false
+        @unknown default:
+            return false
+        }
+    }
+
+    private func addNotificationRequest(_ request: UNNotificationRequest, center: UNUserNotificationCenter) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            center.add(request) { error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume(returning: ())
+                }
+            }
+        }
+    }
+
+    private func loadUserAutoCheckinPreference() {
+        // `bool(forKey:)` defaults to false when key doesn't exist, matching product requirement.
+        autoCheckinBySteps = UserDefaults.standard.bool(forKey: autoCheckinByStepsKey)
     }
 
     /// Returns "en" or "zh" based on the device language.
@@ -111,15 +206,12 @@ final class CheckinViewModel: ObservableObject {
     }
 
     private struct RegisterBody: Codable {
-        let userId: String
         let emergencyContact: EmergencyContact
         let emergencyContact2: EmergencyContact?
         let callName: String
     }
 
-    private struct CheckinBody: Codable {
-        let userId: String
-    }
+    private struct EmptyBody: Codable {}
 
     private struct AuthRegisterBody: Codable {
         let username: String
@@ -153,8 +245,13 @@ final class CheckinViewModel: ObservableObject {
         let language: String
     }
 
+    private struct DeleteAccountBody: Codable {
+        let email: String
+        let password: String
+        let language: String
+    }
+
     private struct UpdateCallNameBody: Codable {
-        let userId: String
         let callName: String
     }
 
@@ -177,6 +274,10 @@ final class CheckinViewModel: ObservableObject {
             statusText = String(localized: "Enter your password")
             return
         }
+        guard password.count >= 6 else {
+            statusText = String(localized: "Password must be at least 6 characters")
+            return
+        }
         guard password == confirmPassword else {
             statusText = String(localized: "Passwords do not match")
             return
@@ -193,11 +294,24 @@ final class CheckinViewModel: ObservableObject {
             )
             if response.ok, let user = response.user {
                 userId = user.userId
+                loadUserAutoCheckinPreference()
                 username = user.username ?? trimmedName
                 callName = user.callName ?? user.username ?? trimmedName
+                email = user.email ?? trimmedEmail
+
+                // Save JWT tokens to Keychain
+                if let accessToken = response.accessToken {
+                    KeychainService.save(key: .accessToken, value: accessToken)
+                }
+                if let refreshToken = response.refreshToken {
+                    KeychainService.save(key: .refreshToken, value: refreshToken)
+                }
+                KeychainService.save(key: .userId, value: userId)
+                KeychainService.save(key: .userEmail, value: email)
+
                 isAuthenticated = true
                 statusText = response.message ?? ""
-                
+
                 // Parse optional fields
                 if let contact = user.emergencyContact {
                     contactName = contact.name ?? ""
@@ -231,6 +345,10 @@ final class CheckinViewModel: ObservableObject {
             statusText = String(localized: "Enter your password")
             return
         }
+        guard password.count >= 6 else {
+            statusText = String(localized: "Password must be at least 6 characters")
+            return
+        }
 
         do {
             let body = AuthLoginBody(email: trimmedEmail, password: password, language: deviceLanguage)
@@ -243,12 +361,24 @@ final class CheckinViewModel: ObservableObject {
             )
             if response.ok, let user = response.user {
                 userId = user.userId
+                loadUserAutoCheckinPreference()
                 username = user.username ?? trimmedEmail.split(separator: "@").first.map(String.init) ?? trimmedEmail
                 callName = user.callName ?? user.username ?? username
                 email = user.email ?? trimmedEmail
+
+                // Save JWT tokens to Keychain
+                if let accessToken = response.accessToken {
+                    KeychainService.save(key: .accessToken, value: accessToken)
+                }
+                if let refreshToken = response.refreshToken {
+                    KeychainService.save(key: .refreshToken, value: refreshToken)
+                }
+                KeychainService.save(key: .userId, value: userId)
+                KeychainService.save(key: .userEmail, value: email)
+
                 isAuthenticated = true
                 statusText = response.message ?? ""
-                
+
                 // Parse optional fields
                 if let contact = user.emergencyContact {
                     contactName = contact.name ?? ""
@@ -268,6 +398,10 @@ final class CheckinViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Apple Sign In (Not Implemented)
+    // This function is not currently used in the UI and should not be called
+    // To implement properly, integrate AuthenticationServices framework
+    /*
     func continueWithAppleID() {
         if username.trimmingCharacters(in: .whitespaces).isEmpty {
             username = "Apple User"
@@ -280,15 +414,119 @@ final class CheckinViewModel: ObservableObject {
         isAuthenticated = true
         statusText = ""
     }
+    */
 
     func logout() {
+        KeychainService.deleteAll()
         isAuthenticated = false
         hasCompletedEmergencySetup = false
+        username = ""
+        email = ""
         callName = ""
+        contactName = ""
+        contactPhone = ""
+        contactName2 = ""
+        contactPhone2 = ""
         password = ""
         confirmPassword = ""
+        checkinDays = 0
         lastCheckinDate = nil
+        daysSinceLastCheckin = nil
         statusText = ""
+    }
+
+    /// Restore session from Keychain on app launch
+    func restoreSession() async {
+        guard let storedUserId = KeychainService.get(key: .userId),
+              let storedEmail = KeychainService.get(key: .userEmail),
+              KeychainService.get(key: .accessToken) != nil else {
+            return
+        }
+
+        userId = storedUserId
+        email = storedEmail
+        loadUserAutoCheckinPreference()
+
+        // Verify session by calling /api/status
+        do {
+            let response: APIResponse<UserProfile> = try await api.request(
+                baseURL: baseURL,
+                path: "/api/status/\(userId)",
+                method: "GET",
+                body: Optional<String>.none,
+                responseType: APIResponse<UserProfile>.self,
+                authenticated: true
+            )
+
+            if let user = response.user {
+                username = user.username ?? email.split(separator: "@").first.map(String.init) ?? email
+                callName = user.callName ?? user.username ?? username
+                if let contact = user.emergencyContact {
+                    contactName = contact.name ?? ""
+                    contactPhone = contact.phone ?? ""
+                }
+                if let contact2 = user.emergencyContact2 {
+                    contactName2 = contact2.name ?? ""
+                    contactPhone2 = contact2.phone ?? ""
+                }
+                selectedLanguage = user.language ?? "en"
+                hasCompletedEmergencySetup = !contactName.trimmingCharacters(in: .whitespaces).isEmpty && !contactPhone.trimmingCharacters(in: .whitespaces).isEmpty
+
+                // Calculate days since last check-in
+                if let lastCheckinDateStr = user.lastCheckinDate {
+                    let formatter = ISO8601DateFormatter()
+                    formatter.formatOptions = [.withFullDate]
+                    if let lastDate = formatter.date(from: lastCheckinDateStr) {
+                        let days = Calendar.current.dateComponents([.day], from: lastDate, to: Date()).day ?? 0
+                        daysSinceLastCheckin = days
+                    }
+                }
+
+                isAuthenticated = true
+            }
+        } catch {
+            // Session invalid - clear tokens
+            KeychainService.deleteAll()
+        }
+    }
+
+    func deleteAccount(currentPassword: String) async -> Bool {
+        let trimmedPassword = currentPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            statusText = String(localized: "Missing account email")
+            return false
+        }
+        guard !trimmedPassword.isEmpty else {
+            statusText = String(localized: "Enter your password to delete account")
+            return false
+        }
+
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let response: APIResponse<AuthUser> = try await api.request(
+                baseURL: baseURL,
+                path: "/api/auth/delete-account",
+                method: "POST",
+                body: DeleteAccountBody(email: email, password: trimmedPassword, language: deviceLanguage),
+                responseType: APIResponse<AuthUser>.self,
+                authenticated: true
+            )
+
+            if response.ok {
+                KeychainService.deleteAll()
+                logout()
+                statusText = response.message ?? String(localized: "Account deleted")
+                return true
+            }
+
+            statusText = response.message ?? String(localized: "Failed to delete account")
+            return false
+        } catch {
+            statusText = error.localizedDescription
+            return false
+        }
     }
 
     func updateLanguage(to language: String) {
@@ -373,8 +611,9 @@ final class CheckinViewModel: ObservableObject {
                 baseURL: baseURL,
                 path: "/api/user/call-name",
                 method: "POST",
-                body: UpdateCallNameBody(userId: userId, callName: trimmed),
-                responseType: APIResponse<UserProfile>.self
+                body: UpdateCallNameBody(callName: trimmed),
+                responseType: APIResponse<UserProfile>.self,
+                authenticated: true
             )
 
             if response.ok {
@@ -401,7 +640,6 @@ final class CheckinViewModel: ObservableObject {
         }
 
         let body = RegisterBody(
-            userId: userId,
             emergencyContact: EmergencyContact(name: contactName, phone: contactPhone),
             emergencyContact2: (!contactName2.trimmingCharacters(in: .whitespaces).isEmpty || !contactPhone2.trimmingCharacters(in: .whitespaces).isEmpty)
                 ? EmergencyContact(name: contactName2, phone: contactPhone2)
@@ -415,7 +653,8 @@ final class CheckinViewModel: ObservableObject {
                 path: "/api/user/register",
                 method: "POST",
                 body: body,
-                responseType: APIResponse<UserProfile>.self
+                responseType: APIResponse<UserProfile>.self,
+                authenticated: true
             )
             hasCompletedEmergencySetup = true
             statusText = ""
@@ -440,8 +679,9 @@ final class CheckinViewModel: ObservableObject {
                 baseURL: baseURL,
                 path: "/api/checkin",
                 method: "POST",
-                body: CheckinBody(userId: userId),
-                responseType: APIResponse<UserProfile>.self
+                body: EmptyBody(),
+                responseType: APIResponse<UserProfile>.self,
+                authenticated: true
             )
             checkinDays += 1
             lastCheckinDate = Date()
@@ -516,25 +756,6 @@ final class CheckinViewModel: ObservableObject {
         return Calendar.current.isDateInToday(lastCheckinDate)
     }
 
-    func evaluateEmergency() async {
-        do {
-            let response: APIResponse<UserProfile> = try await api.request(
-                baseURL: baseURL,
-                path: "/api/evaluate",
-                method: "POST",
-                body: CheckinBody(userId: userId),
-                responseType: APIResponse<UserProfile>.self
-            )
-            if response.triggered == true {
-                statusText = String(localized: "Emergency contact triggered (Backend simulation)")
-            } else {
-                statusText = response.message ?? String(localized: "Emergency contact not needed at this time")
-            }
-        } catch {
-            statusText = error.localizedDescription
-        }
-    }
-
     func loadStatus() async {
         do {
             let response: APIResponse<UserProfile> = try await api.request(
@@ -542,7 +763,8 @@ final class CheckinViewModel: ObservableObject {
                 path: "/api/status/\(userId)",
                 method: "GET",
                 body: Optional<String>.none,
-                responseType: APIResponse<UserProfile>.self
+                responseType: APIResponse<UserProfile>.self,
+                authenticated: true
             )
 
             if let user = response.user {
@@ -557,9 +779,21 @@ final class CheckinViewModel: ObservableObject {
                 }
                 selectedLanguage = user.language ?? "en"
                 hasCompletedEmergencySetup = !contactName.trimmingCharacters(in: .whitespaces).isEmpty && !contactPhone.trimmingCharacters(in: .whitespaces).isEmpty
-            }
-            if response.emergencyShouldTrigger == true {
-                statusText = String(localized: "Warning: Not checked in for over 2 days")
+
+                // Calculate days since last check-in
+                if let lastCheckinDateStr = user.lastCheckinDate {
+                    let formatter = ISO8601DateFormatter()
+                    formatter.formatOptions = [.withFullDate]
+                    if let lastDate = formatter.date(from: lastCheckinDateStr) {
+                        let days = Calendar.current.dateComponents([.day], from: lastDate, to: Date()).day ?? 0
+                        daysSinceLastCheckin = days
+                        if days == 0 {
+                            lastCheckinDate = lastDate
+                        }
+                    }
+                } else {
+                    daysSinceLastCheckin = nil
+                }
             }
         } catch {
             // First launch may not have registered user yet; keep default hint.

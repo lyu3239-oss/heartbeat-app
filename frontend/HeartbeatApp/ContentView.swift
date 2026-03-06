@@ -1,8 +1,11 @@
 import SwiftUI
+import PhotosUI
+import UIKit
 
 struct ContentView: View {
     @EnvironmentObject private var viewModel: CheckinViewModel
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
     @State private var showProfileMenu = false
     @State private var activeScreen: AppScreen = .main
     @State private var authScreen: AuthScreen = .login
@@ -25,6 +28,17 @@ struct ContentView: View {
     @State private var showChangeNewPassword = false
     @State private var showChangeConfirmPassword = false
     @State private var showRegistrationSuccess = false
+    @State private var showDeleteAccountConfirm = false
+    @State private var showDeletePasswordSheet = false
+    @State private var deleteAccountPassword = ""
+    @State private var bypassEmergencySetupGate = false
+    @State private var emergencyOpenedFromSettings = false
+    @State private var showAvatarSheet = false
+    @State private var selectedAvatarItem: PhotosPickerItem?
+    @State private var avatarPreviewImage: UIImage?
+    @State private var avatarLoadError = ""
+    @State private var showMakeupCheckinAlert = false
+    @AppStorage("profileAvatarBase64") private var legacyProfileAvatarBase64 = ""
 
     init(initialAuthScreen: AuthScreen = .login, initialActiveScreen: AppScreen = .main, initialShowRegistrationSuccess: Bool = false) {
         _authScreen = State(initialValue: initialAuthScreen)
@@ -45,6 +59,23 @@ struct ContentView: View {
         case forgotPassword
     }
 
+    private var termsURL: URL? {
+        let configured = Bundle.main.object(forInfoDictionaryKey: "TERMS_OF_SERVICE_URL") as? String
+        let value = configured?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return URL(string: (value?.isEmpty == false ? value! : "https://heartbeatapp.space/terms"))
+    }
+
+    private var privacyURL: URL? {
+        let configured = Bundle.main.object(forInfoDictionaryKey: "PRIVACY_POLICY_URL") as? String
+        let value = configured?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return URL(string: (value?.isEmpty == false ? value! : "https://heartbeatapp.space/privacy"))
+    }
+
+    private func openLegalURL(_ url: URL?) {
+        guard let url else { return }
+        openURL(url)
+    }
+
     var body: some View {
         Group {
             if !viewModel.isAuthenticated {
@@ -62,7 +93,7 @@ struct ContentView: View {
                         case .changePassword:
                             changePasswordView
                         case .main:
-                            if viewModel.hasCompletedEmergencySetup {
+                            if viewModel.hasCompletedEmergencySetup || bypassEmergencySetupGate {
                                 mainView
                             } else {
                                 emergencySetupView
@@ -76,6 +107,10 @@ struct ContentView: View {
                                 Button(String(localized: "Back")) {
                                     activeScreen = .main
                                 }
+                            } else if activeScreen == .emergency, emergencyOpenedFromSettings {
+                                Button(String(localized: "Back")) {
+                                    activeScreen = .settings
+                                }
                             } else if activeScreen == .emergency || (!viewModel.hasCompletedEmergencySetup && activeScreen == .main) {
                                 Image(systemName: "person.crop.circle.fill")
                                     .font(.system(size: 22))
@@ -86,7 +121,8 @@ struct ContentView: View {
 
                         ToolbarItem(placement: .topBarTrailing) {
                             if (activeScreen == .emergency || (!viewModel.hasCompletedEmergencySetup && activeScreen == .main)),
-                               viewModel.hasCompletedEmergencySetup {
+                               viewModel.hasCompletedEmergencySetup,
+                               !emergencyOpenedFromSettings {
                                 Button(String(localized: "Back")) {
                                     activeScreen = .main
                                 }
@@ -104,6 +140,9 @@ struct ContentView: View {
             if showProfileMenu {
                 withAnimation { showProfileMenu = false }
             }
+        }
+        .task {
+            migrateLegacyAvatarIfNeeded()
         }
     }
 
@@ -203,13 +242,14 @@ struct ContentView: View {
                 }
             }
 
-            Spacer().frame(height: 16)
+            Spacer().frame(height: 4)
 
-            if !viewModel.statusText.isEmpty {
-                Text(viewModel.statusText)
-                    .foregroundStyle(.red)
-                    .font(.footnote)
-            }
+            // Reserve error-message space so button positions stay fixed.
+            Text(viewModel.statusText.isEmpty ? " " : viewModel.statusText)
+                .foregroundStyle(.red)
+                .font(.footnote)
+                .frame(maxWidth: .infinity, minHeight: 20, alignment: .leading)
+                .accessibilityHidden(viewModel.statusText.isEmpty)
 
             // Login button
             Button {
@@ -358,59 +398,62 @@ struct ContentView: View {
                 .cornerRadius(12)
             }
 
-            Spacer().frame(height: 16)
-
-            if !viewModel.statusText.isEmpty {
-                Text(viewModel.statusText)
-                    .foregroundStyle(.red)
+            VStack(spacing: 12) {
+                // Reserve message space so reset controls do not shift when status appears.
+                Text(viewModel.statusText.isEmpty ? " " : viewModel.statusText)
+                    .foregroundStyle(.blue)
                     .font(.footnote)
-            }
+                    .frame(maxWidth: .infinity, minHeight: 20, alignment: .center)
+                    .multilineTextAlignment(.center)
+                    .accessibilityHidden(viewModel.statusText.isEmpty)
 
-            // Reset button
-            Button {
-                Task {
-                    let success = await viewModel.resetPassword(
-                        email: resetEmail,
-                        code: verificationCode,
-                        newPassword: newPassword
-                    )
-                    if success {
-                        authScreen = .login
-                        newPassword = ""
-                        confirmNewPassword = ""
-                        verificationCode = ""
+                // Reset button
+                Button {
+                    Task {
+                        let success = await viewModel.resetPassword(
+                            email: resetEmail,
+                            code: verificationCode,
+                            newPassword: newPassword
+                        )
+                        if success {
+                            authScreen = .login
+                            newPassword = ""
+                            confirmNewPassword = ""
+                            verificationCode = ""
+                        }
+                    }
+                } label: {
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .tint(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(Color.blue)
+                            .cornerRadius(14)
+                    } else {
+                        Text(String(localized: "Reset Password"))
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(Color.blue)
+                            .cornerRadius(14)
                     }
                 }
-            } label: {
-                if viewModel.isLoading {
-                    ProgressView()
-                        .tint(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Color.blue)
-                        .cornerRadius(14)
-                } else {
-                    Text(String(localized: "Reset Password"))
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Color.blue)
-                        .cornerRadius(14)
-                }
-            }
 
-            // Tip box
-            HStack(alignment: .top, spacing: 8) {
-                Text("💡")
-                Text(String(localized: "A verification code will be sent to your email"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                // Tip box
+                HStack(alignment: .top, spacing: 8) {
+                    Text("💡")
+                    Text(String(localized: "A verification code will be sent to your email"))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.systemBackground))
+                .cornerRadius(12)
             }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
+            .padding(.top, -8)
         }
     }
 
@@ -545,19 +588,25 @@ struct ContentView: View {
             }
 
             // Terms
-            HStack(spacing: 4) {
-                Spacer()
+            VStack(spacing: 2) {
                 Text(String(localized: "By signing up, you agree to the"))
                     .foregroundStyle(.secondary)
-                Button(String(localized: "Terms of Service")) { }
-                    .fontWeight(.semibold)
-                Text(String(localized: "and"))
-                    .foregroundStyle(.secondary)
-                Button(String(localized: "Privacy Policy")) { }
-                    .fontWeight(.semibold)
-                Spacer()
+                HStack(spacing: 4) {
+                    Button(String(localized: "Terms of Service")) {
+                        openLegalURL(termsURL)
+                    }
+                        .fontWeight(.semibold)
+                    Text(String(localized: "and"))
+                        .foregroundStyle(.secondary)
+                    Button(String(localized: "Privacy Policy")) {
+                        openLegalURL(privacyURL)
+                    }
+                        .fontWeight(.semibold)
+                }
             }
             .font(.footnote)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
         }
     }
 
@@ -666,6 +715,7 @@ struct ContentView: View {
                     }
 
                     Button {
+                        bypassEmergencySetupGate = true
                         activeScreen = .main
                     } label: {
                         Text(String(localized: "Skip"))
@@ -906,12 +956,6 @@ struct ContentView: View {
 
                     Spacer().frame(height: 16)
 
-                    if !viewModel.statusText.isEmpty {
-                        Text(viewModel.statusText)
-                            .foregroundStyle(.red)
-                            .font(.footnote)
-                    }
-
                     // Confirm button
                     Button {
                         guard changeNewPassword == changeConfirmPassword else {
@@ -1013,18 +1057,14 @@ struct ContentView: View {
 
                     // User profile card
                     Button {
-                        // Profile editing (future)
+                        avatarPreviewImage = storedAvatarImage
+                        selectedAvatarItem = nil
+                        avatarLoadError = ""
+                        showAvatarSheet = true
                     } label: {
                         HStack(spacing: 14) {
                             // Avatar
-                            ZStack {
-                                Circle()
-                                    .fill(Color.blue)
-                                    .frame(width: 50, height: 50)
-                                Text(String((viewModel.username.isEmpty ? "U" : viewModel.username).prefix(1)).uppercased())
-                                    .font(.title2.bold())
-                                    .foregroundStyle(.white)
-                            }
+                            avatarView(size: 50)
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(viewModel.username.isEmpty ? String(localized: "Username") : viewModel.username)
@@ -1054,6 +1094,7 @@ struct ContentView: View {
 
                     VStack(spacing: 0) {
                         settingsRow(icon: "phone.fill", title: String(localized: "Emergency Contacts")) {
+                            emergencyOpenedFromSettings = true
                             navigate(to: .emergency)
                         }
                         Divider().padding(.leading, 52)
@@ -1094,6 +1135,45 @@ struct ContentView: View {
                     .cornerRadius(14)
                     .padding(.bottom, 24)
 
+                    Text(String(localized: "Danger Zone"))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .padding(.leading, 4)
+                        .padding(.bottom, 8)
+
+                    Button {
+                        showDeleteAccountConfirm = true
+                    } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "trash.fill")
+                                .font(.body)
+                                .foregroundStyle(.red)
+                                .frame(width: 24)
+                            Text(String(localized: "Delete Account"))
+                                .font(.body)
+                                .foregroundStyle(.red)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 16)
+                        .background(Color(.systemBackground))
+                        .cornerRadius(14)
+                    }
+                    .padding(.bottom, 10)
+
+                    Button {
+                        openLegalURL(privacyURL)
+                    } label: {
+                        Text(String(localized: "View deletion details in Privacy Policy"))
+                            .font(.footnote)
+                            .foregroundStyle(.blue)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(.bottom, 24)
+
 
 
                     // Version
@@ -1105,6 +1185,7 @@ struct ContentView: View {
 
                     // Logout button
                     Button {
+                        bypassEmergencySetupGate = false
                         viewModel.logout()
                         activeScreen = .main
                     } label: {
@@ -1137,11 +1218,6 @@ struct ContentView: View {
                         }
                     }
                     
-                    Section {
-                        Button(String(localized: "Simulate 100 Steps (Debug)")) {
-                            Task { await viewModel.handleStepCountUpdate(105) }
-                        }
-                    }
                 }
                 .navigationTitle(String(localized: "Auto Check-in Settings"))
                 .navigationBarTitleDisplayMode(.inline)
@@ -1157,6 +1233,9 @@ struct ContentView: View {
                 .background(Color.white.opacity(0.95))
             }
             .presentationDetents([.medium])
+        }
+        .sheet(isPresented: $showAvatarSheet) {
+            avatarPickerSheet
         }
         .sheet(isPresented: $showNotificationSheet) {
             NavigationStack {
@@ -1210,7 +1289,7 @@ struct ContentView: View {
         .sheet(isPresented: $showCallNameSheet) {
             NavigationStack {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text(String(localized: "Set how emergency calls refer to you"))
+                    Text(String(localized: "Set how your display name appears"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
@@ -1247,6 +1326,82 @@ struct ContentView: View {
             }
             .presentationDetents([.fraction(0.35)])
         }
+        .alert(String(localized: "Delete Account?"), isPresented: $showDeleteAccountConfirm) {
+            Button(String(localized: "Cancel"), role: .cancel) {}
+            Button(String(localized: "Continue"), role: .destructive) {
+                deleteAccountPassword = ""
+                showDeletePasswordSheet = true
+            }
+        } message: {
+            Text(String(localized: "This action is permanent and cannot be undone."))
+        }
+        .sheet(isPresented: $showDeletePasswordSheet) {
+            NavigationStack {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(String(localized: "Enter your password to permanently delete your account."))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    SecureField(String(localized: "Current Password"), text: $deleteAccountPassword)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(Color(.systemBackground))
+                        .cornerRadius(10)
+
+                    if !viewModel.statusText.isEmpty {
+                        Text(viewModel.statusText)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+
+                    Spacer()
+
+                    Button(role: .destructive) {
+                        let previousAvatarURL = avatarFileURL
+                        Task {
+                            let success = await viewModel.deleteAccount(currentPassword: deleteAccountPassword)
+                            if success {
+                                deleteAccountPassword = ""
+                                showDeletePasswordSheet = false
+                                bypassEmergencySetupGate = false
+                                removeAvatar(at: previousAvatarURL)
+                                activeScreen = .main
+                            }
+                        }
+                    } label: {
+                        if viewModel.isLoading {
+                            ProgressView()
+                                .tint(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(Color.red)
+                                .cornerRadius(12)
+                        } else {
+                            Text(String(localized: "Delete Account"))
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(Color.red)
+                                .cornerRadius(12)
+                        }
+                    }
+                }
+                .padding(20)
+                .navigationTitle(String(localized: "Delete Account"))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(String(localized: "Cancel")) {
+                            deleteAccountPassword = ""
+                            showDeletePasswordSheet = false
+                        }
+                    }
+                }
+                .background(Color(.systemGroupedBackground))
+            }
+            .presentationDetents([.fraction(0.38)])
+        }
     }
 
     private var maskedEmail: String {
@@ -1263,6 +1418,162 @@ struct ContentView: View {
 
         let fallback = viewModel.username.trimmingCharacters(in: .whitespacesAndNewlines)
         return fallback.isEmpty ? String(localized: "Not set") : fallback
+    }
+
+    private var storedAvatarImage: UIImage? {
+        guard let data = try? Data(contentsOf: avatarFileURL),
+              let image = UIImage(data: data) else {
+            return nil
+        }
+        return image
+    }
+
+    private var avatarFileName: String {
+        let trimmed = viewModel.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if trimmed.isEmpty {
+            return "avatar-guest.jpg"
+        }
+        let safe = trimmed.replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
+        return "avatar-\(safe).jpg"
+    }
+
+    private var avatarFileURL: URL {
+        let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("AvatarCache", isDirectory: true)
+            ?? URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("AvatarCache", isDirectory: true)
+        return directory.appendingPathComponent(avatarFileName)
+    }
+
+    private func saveAvatarToDisk(_ image: UIImage) {
+        guard let data = image.jpegData(compressionQuality: 0.85) else { return }
+
+        let directory = avatarFileURL.deletingLastPathComponent()
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try? data.write(to: avatarFileURL, options: .atomic)
+    }
+
+    private func removeAvatarFromDisk() {
+        try? FileManager.default.removeItem(at: avatarFileURL)
+    }
+
+    private func removeAvatar(at url: URL) {
+        try? FileManager.default.removeItem(at: url)
+    }
+
+    private func migrateLegacyAvatarIfNeeded() {
+        guard storedAvatarImage == nil,
+              !legacyProfileAvatarBase64.isEmpty,
+              let data = Data(base64Encoded: legacyProfileAvatarBase64),
+              let image = UIImage(data: data) else {
+            return
+        }
+
+        saveAvatarToDisk(image)
+        legacyProfileAvatarBase64 = ""
+    }
+
+    private func avatarView(size: CGFloat) -> some View {
+        Group {
+            if let uiImage = storedAvatarImage {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                ZStack {
+                    Circle().fill(Color.blue)
+                    Text(String((viewModel.username.isEmpty ? "U" : viewModel.username).prefix(1)).uppercased())
+                        .font(.system(size: size * 0.45, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+    }
+
+    private var avatarPickerSheet: some View {
+        NavigationStack {
+            VStack(spacing: 18) {
+                Group {
+                    if let preview = avatarPreviewImage {
+                        Image(uiImage: preview)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 110, height: 110)
+                            .clipShape(Circle())
+                    } else {
+                        avatarView(size: 110)
+                    }
+                }
+                .padding(.top, 12)
+
+                PhotosPicker(selection: $selectedAvatarItem, matching: .images) {
+                    Text(String(localized: "Choose from Photo Library"))
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Color.blue)
+                        .cornerRadius(12)
+                }
+
+                if !avatarLoadError.isEmpty {
+                    Text(avatarLoadError)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                Button(role: .destructive) {
+                    avatarPreviewImage = nil
+                    removeAvatarFromDisk()
+                } label: {
+                    Text(String(localized: "Remove Current Avatar"))
+                        .frame(maxWidth: .infinity)
+                }
+
+                Spacer()
+            }
+            .padding(20)
+            .navigationTitle(String(localized: "Profile Photo"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(String(localized: "Cancel")) {
+                        showAvatarSheet = false
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(String(localized: "Save")) {
+                        if let preview = avatarPreviewImage {
+                            saveAvatarToDisk(preview)
+                        }
+                        showAvatarSheet = false
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+            .onChange(of: selectedAvatarItem) { newItem in
+                guard let newItem else { return }
+                Task { await loadAvatarPreview(from: newItem) }
+            }
+            .background(Color(.systemGroupedBackground))
+        }
+        .presentationDetents([.fraction(0.45), .medium])
+    }
+
+    private func loadAvatarPreview(from item: PhotosPickerItem) async {
+        do {
+            avatarLoadError = ""
+            if let data = try await item.loadTransferable(type: Data.self),
+               let image = UIImage(data: data) {
+                avatarPreviewImage = image
+            } else {
+                avatarLoadError = String(localized: "Unable to load image")
+            }
+        } catch {
+            avatarLoadError = String(localized: "Unable to load image")
+        }
     }
 
     private func settingsRow(icon: String, title: String, detail: String? = nil, action: @escaping () -> Void) -> some View {
@@ -1304,6 +1615,7 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 // Top bar: greeting + gear
                 HStack {
+                    avatarView(size: 36)
                     Text(String(localized: "Hello, \(viewModel.username.isEmpty ? String(localized: "User") : viewModel.username)"))
                         .font(.system(size: 26, weight: .bold))
                     Spacer()
@@ -1392,11 +1704,29 @@ struct ContentView: View {
         }
         .task {
             await viewModel.loadStatus()
+            // Check if user needs makeup check-in (missed more than 2 days)
+            if viewModel.checkinDays == 0 && viewModel.isAuthenticated {
+                showMakeupCheckinAlert = true
+            }
+        }
+        .alert(String(localized: "Makeup Check-in"), isPresented: $showMakeupCheckinAlert) {
+            Button(String(localized: "Makeup Now")) {
+                Task {
+                    await viewModel.checkInToday()
+                    viewModel.statusText = String(localized: "Makeup check-in successful")
+                }
+            }
+            Button(String(localized: "Later"), role: .cancel) {}
+        } message: {
+            Text(String(localized: "You missed check-ins for the past few days. Would you like to make up for them?"))
         }
     }
 
     private func navigate(to screen: AppScreen) {
         showProfileMenu = false
+        if screen != .emergency {
+            emergencyOpenedFromSettings = false
+        }
         activeScreen = screen
     }
 }

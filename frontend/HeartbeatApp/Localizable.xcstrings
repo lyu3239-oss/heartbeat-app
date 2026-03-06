@@ -460,6 +460,31 @@
       "localizations" : {
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "密码长度至少6位" } }
       }
+    },
+    "Makeup Check-in" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "补卡" } }
+      }
+    },
+    "You missed check-ins for the past few days. Would you like to make up for them?" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "您过去几天漏打卡了，是否需要补卡？" } }
+      }
+    },
+    "Makeup Now" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "立即补卡" } }
+      }
+    },
+    "Later" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "稍后" } }
+      }
+    },
+    "Makeup check-in successful" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "补卡成功" } }
+      }
     }
   },
   "version" : "1.0"
